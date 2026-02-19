@@ -1,0 +1,16 @@
+{
+  "name": "Healthcare App",
+  "short_name": "HealthApp",
+  "description": "Offline-first patient management system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2382/2382461.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

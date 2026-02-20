@@ -1,3 +1,150 @@
+
+
+// Current User
+let currentUser = null;
+let currentRole = 'doctor';
+
+// Set Role
+function setRole(role) {
+  currentRole = role;
+  if (role === 'doctor') {
+    document.getElementById('doctorRoleBtn').className = 'flex-1 py-2 rounded-lg bg-sky-600 text-white font-semibold text-sm';
+    document.getElementById('patientRoleBtn').className = 'flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-semibold text-sm';
+  } else {
+    document.getElementById('patientRoleBtn').className = 'flex-1 py-2 rounded-lg bg-sky-600 text-white font-semibold text-sm';
+    document.getElementById('doctorRoleBtn').className = 'flex-1 py-2 rounded-lg bg-gray-100 text-gray-600 font-semibold text-sm';
+  }
+}
+
+// Show Register/Login Forms
+function showRegister() {
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('registerForm').classList.remove('hidden');
+}
+function showLogin() {
+  document.getElementById('registerForm').classList.add('hidden');
+  document.getElementById('loginForm').classList.remove('hidden');
+}
+
+// Show Main App
+function showApp() {
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('roleTag').textContent = currentUser.role === 'doctor' ? '👨‍⚕️ Doctor' : '🧑 Patient';
+  if (currentUser.role === 'patient') {
+    document.getElementById('btn-dashboard').classList.add('hidden');
+    document.getElementById('btn-register').textContent = '📅 Book Appointment';
+    showTab('register');
+  } else {
+    document.getElementById('btn-dashboard').classList.remove('hidden');
+    document.getElementById('btn-register').textContent = '➕ Register';
+    showTab('dashboard');
+  }
+  updateStatus2();
+  loadPatients();
+  loadStats();
+}
+
+// Register
+async function register() {
+  const name = document.getElementById('regName').value;
+  const email = document.getElementById('regEmail').value;
+  const password = document.getElementById('regPassword').value;
+  if (!name || !email || !password) { showToast('⚠️ Badha fields bharo!', 'yellow'); return; }
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, role: currentRole })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('✅ Registered! Login karo!', 'green');
+      showLogin();
+    } else {
+      showToast('❌ ' + data.message, 'red');
+    }
+  } catch (err) {
+    showToast('❌ Registration failed!', 'red');
+  }
+}
+
+// Login
+async function login() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  if (!email || !password) { showToast('⚠️ Email ane password bharo!', 'yellow'); return; }
+
+  // Offline login
+  if (!navigator.onLine) {
+    const savedUser = localStorage.getItem('offlineUser') || localStorage.getItem('currentUser');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      if (user.email === email.trim() && user.password === password.trim()) {
+        currentUser = user;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        showApp();
+        showToast('✅ Offline login!', 'green');
+        return;
+      } else {
+        showToast('❌ Email ya password galat che!', 'red');
+        return;
+      }
+    }
+    showToast('❌ Pehla online login karelu hovu joie!', 'red');
+    return;
+  }
+
+  // Online login
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentUser = data.data;
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      localStorage.setItem('offlineUser', JSON.stringify(currentUser));
+      showApp();
+    } else {
+      showToast('❌ Invalid email or password!', 'red');
+    }
+  } catch (err) {
+    showToast('❌ Login failed!', 'red');
+  }
+}
+
+// Logout
+// function logout() {
+//   if (!navigator.onLine) {
+//     showToast('📴 Offline ma logout nai thay!', 'yellow');
+//     return;
+//   }
+//   currentUser = null;
+//   //calStorage.removeItem('currentUser');
+//  //ocalStorage.setItem('offlineUser', JSON.stringify({...currentUser}));
+//  localStorage.setItem('offlineUser', localStorage.getItem('currentUser'));
+//   document.getElementById('mainApp').classList.add('hidden');
+//   document.getElementById('loginPage').classList.remove('hidden');
+// }
+
+function logout() {
+  localStorage.setItem('offlineUser', localStorage.getItem('currentUser'));
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+}
+
+// Auto Login
+const savedUser = localStorage.getItem('currentUser');
+if (savedUser) {
+  currentUser = JSON.parse(savedUser);
+  showApp();
+}
+
 // Register Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js')
@@ -42,7 +189,6 @@ async function clearOfflinePatients() {
 }
 
 // Load Stats
-
 async function loadStats() {
   if (!navigator.onLine) {
     const cached = localStorage.getItem('cachedStats');
@@ -53,7 +199,6 @@ async function loadStats() {
       document.getElementById('pendingCount').textContent = s.pending;
       document.getElementById('doneCount').textContent = s.done;
       if (s.doctorStats) renderDoctorChart(s.doctorStats);
-
     }
     return;
   }
@@ -65,9 +210,7 @@ async function loadStats() {
     document.getElementById('totalPatients').textContent = s.total;
     document.getElementById('todayPatients').textContent = s.todayPatients;
     document.getElementById('pendingCount').textContent = s.pending;
-   document.getElementById('doneCount').textContent = s.done;
-   
-    //renderDoctorChart(s.doctorStats);
+    document.getElementById('doneCount').textContent = s.done;
     if (s.doctorStats) renderDoctorChart(s.doctorStats);
   } catch (err) {
     console.log('Stats error:', err);
@@ -108,7 +251,8 @@ async function submitPatient(e) {
     doctor: document.getElementById('doctor').value,
     date: document.getElementById('date').value,
     time: document.getElementById('time').value,
-    status: 'Pending'
+    status: 'Pending',
+    patientEmail: currentUser.email
   };
 
   if (navigator.onLine) {
@@ -198,9 +342,7 @@ async function addPrescription(id) {
   }
 }
 
-
 // Load Patients
-
 async function loadPatients() {
   if (!navigator.onLine) {
     const cached = localStorage.getItem('cachedPatients');
@@ -209,7 +351,10 @@ async function loadPatients() {
     return;
   }
   try {
-    const res = await fetch('/api/patients');
+    const url = currentUser.role === 'patient'
+      ? `/api/patients?email=${currentUser.email}`
+      : '/api/patients';
+    const res = await fetch(url);
     const data = await res.json();
     localStorage.setItem('cachedPatients', JSON.stringify(data.data));
     renderPatients(data.data, false);
@@ -232,13 +377,11 @@ function renderPatients(patients, isOffline) {
     list.innerHTML = '<p class="text-gray-400 text-center col-span-2">No patients found</p>';
     return;
   }
-
   const statusColors = {
     'Pending': 'bg-yellow-100 text-yellow-700',
     'Confirmed': 'bg-blue-100 text-blue-700',
     'Done': 'bg-green-100 text-green-700'
   };
-
   list.innerHTML = patients.map(p => `
     <div class="bg-white rounded-xl p-4 shadow border-l-4 ${isOffline ? 'border-yellow-400' : 'border-sky-400'}">
       <div class="flex justify-between items-center mb-2">
@@ -252,7 +395,7 @@ function renderPatients(patients, isOffline) {
       <p class="text-gray-600">👨‍⚕️ ${p.doctor}</p>
       <p class="text-gray-400 text-xs mt-2">📅 ${p.date} at ${p.time}</p>
       ${p.prescription ? `<p class="text-purple-600 text-xs mt-1">💊 ${p.prescription}</p>` : ''}
-      ${!isOffline ? `
+      ${!isOffline && currentUser.role === 'doctor' ? `
       <div class="flex gap-2 mt-3 flex-wrap">
         <button onclick="updateStatus('${p._id}', 'Confirmed')"
           class="flex-1 text-xs bg-blue-500 hover:bg-blue-600 text-white py-1 rounded-lg">
@@ -266,7 +409,6 @@ function renderPatients(patients, isOffline) {
           class="flex-1 text-xs bg-purple-500 hover:bg-purple-600 text-white py-1 rounded-lg">
           💊 Rx
         </button>
-        
         <button onclick="deletePatient('${p._id}')"
           class="flex-1 text-xs bg-red-500 hover:bg-red-600 text-white py-1 rounded-lg">
           🗑️ Del

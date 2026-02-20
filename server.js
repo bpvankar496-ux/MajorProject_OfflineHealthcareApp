@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const { Patient } = require('./db');
+const { Patient ,User } = require('./db');
 
 const app = express();
 const PORT = 3000;
@@ -12,10 +12,18 @@ app.use(bodyParser.json());
 app.use(express.static('public'));
 
 // Get all patients
+//app.get('/api/patients', async (req, res) => {
+  //try {
+    //const patients = await Patient.find().sort({ createdAt: -1 });
+    //res.json({ success: true, data: patients });
+
 app.get('/api/patients', async (req, res) => {
   try {
-    const patients = await Patient.find().sort({ createdAt: -1 });
+    const { email } = req.query;
+    const query = email ? { patientEmail: email } : {};
+    const patients = await Patient.find(query).sort({ createdAt: -1 });
     res.json({ success: true, data: patients });
+
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -114,6 +122,37 @@ app.patch('/api/patients/:id/prescription', async (req, res) => {
       { new: true }
     );
     res.json({ success: true, data: patient });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Register
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    const existing = await User.findOne({ email });
+    if (existing) return res.json({ success: false, message: 'Email already exists' });
+    const user = new User({ name, email, password, role });
+    await user.save();
+    res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    //const user = await User.findOne({ email, password });
+    //if (!user) return res.json({ success: false, message: 'Invalid credentials' });
+    //res.json({ success: true, data: user });
+
+const user = await User.findOne({ email, password });
+if (!user) return res.json({ success: false, message: 'Invalid credentials' });
+ const userData = { _id: user._id, name: user.name, email: user.email, password: user.password, role: user.role };
+res.json({ success: true, data: userData });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
